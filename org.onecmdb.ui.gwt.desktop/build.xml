@@ -1,0 +1,226 @@
+<project name="OneCMDB Desktop Application" default="readme">
+
+
+	<tstamp prefix="build" />
+	
+	<!-- used to identify version classes in main source directories -->
+	<regexp id="RE_VERSION_STRING" pattern="(VERSION_STRING *= *).*"/>
+	
+	<!-- 
+	   -	Override default values via these files
+	   -->
+	<property name="build" location="build" />
+	
+	<!-- personal build settings -->
+	<property file="build.properties" />
+	<property file="${org.onecmdb.dir}/onecmdb.properties" />
+	
+	<property name="onecmdb.core.jar" location="${org.onecmdb.core.dir}/build/onecmdb-core-${onecmdb.core.version}.jar" />
+	<property name="onecmdb.utils.jar" location="${org.onecmdb.utils.dir}/build/onecmdb-utils-${onecmdb.utils.version}.jar" />
+	<property name="gxt.src" location="${org.onecmdb.dir}/3rdparty-depts/compile-time2/gwt1.5/gxt-1.2.4.jar"/>
+	<property name="onecmdb.nagios.utils.jar" location="${org.onecmdb.nagios.dir}/build/lib/onecmdb-nagios-utils.jar"/>
+	<property name="onecmdb.graphml.export.jar" location="${org.onecmdb.graphml.export.dir}/build/onecmdb-graphml-export-${onecmdb.graphml.export.version}.jar"/>
+	<property name="onecmdb.gwt.appl.src" location="src" />
+	<property name="onecmdb.gwt.appl.build" location="${build}/gwt.appl" />
+	<property name="onecmdb.gwt.appl.war.build" location="${onecmdb.gwt.appl.build}/war" />
+	<property name="onecmdb.gwt.appl.war.name" value="onecmdb-desktop" />
+	<property name="onecmdb.gwt.appl.build.src" location="${build}/source" />
+	
+	<property name="onecmdb.gwt.appl.war.dest" location="${build}/${onecmdb.gwt.appl.war.name}.war" />
+	<property name="onecmdb.gwt.appl.entrypoint.class" value="org.onecmdb.ui.gwt.desktop.CMDBApplication"/>
+
+	<!-- repository of 3rd party dependcies -->
+		<path id="classpath.depts">
+			<fileset dir="${org.onecmdb.dir}/3rdparty-depts/lib">
+				<include name="**/*.jar"/>
+			</fileset>
+		</path>
+
+		<!-- only needed at compile time -->
+		<path id="classpath.compile-time">
+			<fileset dir="${org.onecmdb.dir}/3rdparty-depts/compile-time2/gwt1.5">
+				<include name="**/*.jar"/>
+			</fileset>
+			<fileset dir="${org.onecmdb.dir}/3rdparty-depts/compile-time2/misc">
+					<include name="**/*.jar"/>
+			</fileset>
+				
+		</path>
+	
+	
+	<target name="clean">
+		<delete dir="${build}" failonerror="false"/>
+	</target>
+	
+	<target name="dist" depends="onecmdb.gwt.appl.war, onecmdb.gwt.appl.repository, setup.src">
+	</target>
+
+	<!-- =================================================================== --> 
+	<!--                                                                     -->
+	<!-- README                                                              -->
+	<!--	                                                                 -->
+	<!-- =================================================================== --> 
+
+		<target name="readme">
+			<loadfile property="README" srcfile="README" />
+		    <echo>${README}</echo>		
+		</target>
+	
+	<!-- =================================================================== --> 
+	<!-- =                                                                   -->
+	<!-- = OneCMDB Desktop GWT Application   								 -->
+	<!-- =	                                                                 -->
+	<!-- =================================================================== --> 
+	<target name="onecmdb.gwt.appl.version">
+ 		<replaceregexp 
+ 			byline="true"
+ 			file="${onecmdb.gwt.appl.src}/org/onecmdb/ui/gwt/desktop/client/Version.java">
+ 			<regexp refid="RE_VERSION_STRING"/> 
+ 			<substitution expression="\1&quot;${onecmdb.gwt.desktop.version}&quot;;" />
+ 		</replaceregexp>
+ 	</target>
+	
+	<target name="onecmdb.gwt.appl.repository">
+		<zip destfile="${build}/repository.zip"
+		      basedir="."
+			  includes="repository/**"	
+			  excludes="*/ChangeStore/**,**/CSV,*/MDR/Models/models/Premium/**"
+		  />
+	</target>
+	
+	<target name="onecmdb.gwt.appl.compile" depends="onecmdb.gwt.appl.version">
+			<mkdir dir="${build}/classes"/>
+			
+		
+			<javac destdir="${build}/classes" source="1.5" target="1.5">
+			
+				<src path="${onecmdb.gwt.appl.src}" />
+					<include name="**"/>
+					<classpath path="${onecmdb.core.jar}"/>
+					<classpath path="${onecmdb.utils.jar}"/>
+					<classpath path="${gxt.src}"/>							
+					<classpath refid="classpath.depts" />
+					<classpath refid="classpath.compile-time" />
+			</javac>
+			
+	</target>
+	
+ 	<target name="onecmdb.gwt.appl.gwt.compile" depends="onecmdb.gwt.appl.version">
+ 		<java classname="com.google.gwt.dev.GWTCompiler" fork="true">
+			<jvmarg value="-Xmx1024M"/>
+			<classpath path="${onecmdb.gwt.appl.src}"/>
+			<classpath path="${gxt.src}"/>
+					
+			<classpath refid="classpath.depts" />
+			<classpath refid="classpath.compile-time" />
+							
+			<arg value="-out"/>
+			<arg value="${onecmdb.gwt.appl.build}"/>
+			<arg value="${onecmdb.gwt.appl.entrypoint.class}"/>
+		</java>
+	</target>
+ 	 
+	<target name="onecmdb.gwt.appl.war" depends="onecmdb.gwt.appl.compile, onecmdb.gwt.appl.gwt.compile">
+ 		<!-- Create structure -->
+ 		<mkdir dir="${onecmdb.gwt.appl.war.build}"/>
+ 		<mkdir dir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}"/>
+ 		<mkdir dir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF"/>
+ 		<mkdir dir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+ 		<mkdir dir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/classes"/>
+ 		
+ 		<!-- Copy web.xml -->
+ 		<copy todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF" file="conf/web.xml"/>
+		
+ 		<!-- Copy classes -->
+ 		<copy todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/classes">
+ 			<fileset dir="${build}/classes"/>
+ 		</copy>
+		
+ 		<!-- Copy repository.cfg -->
+ 		<copy todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/classes" file="${onecmdb.gwt.appl.src}/repository.cfg">
+ 		</copy>
+ 		
+ 	 		
+ 		<!-- Copy libs -->
+ 		<copy file="${gxt.src}" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+ 		
+ 		<!-- OneCMDB libs. -->
+ 		<copy file="${onecmdb.core.jar}" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+ 		<copy file="${onecmdb.utils.jar}" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+ 	 		
+		<!-- Copy Nagios Utils -->
+		<copy file="${onecmdb.nagios.utils.jar}" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+	 	
+		<!-- Copy GraphML Export Utils -->
+		<copy file="${onecmdb.graphml.export.jar}" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+		
+ 		<!-- 3rd part libs. -->
+ 		<copy file="${org.onecmdb.dir}/3rdparty-depts/compile-time2/gwt1.5/gwt-servlet.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+ 		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/activation-1.1.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>         
+ 		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/dom4j-1.6.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>       
+ 		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/xfire-all-1.2.6.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+ 		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/commons-codec-1.3.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>      
+ 		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/stax-api-1.0.1.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+ 		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/commons-httpclient.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>     
+ 		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/jdom-1.0.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>        
+ 		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/wsdl4j-1.6.1.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+ 		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/commons-logging-1.0.4.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>  
+ 		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/jsr173_api-1.0.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>  
+ 		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/wstx-asl-3.2.0.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/quartz-1.5.2.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/commons-fileupload-1.2.1.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/xbean-2.2.0.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/jxl.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/commons-dbcp-1.2.2.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/commons-pool.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+		<copy file="${org.onecmdb.dir}/3rdparty-depts/lib/commons-collections.jar" todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib"/>
+			
+		<!-- Spring -->
+ 		<copy todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/WEB-INF/lib">
+ 			<fileset dir="${org.onecmdb.dir}/3rdparty-depts/lib/">
+ 				<include name="spring-*.jar"/>
+ 			</fileset>
+ 		</copy>
+ 	 		 
+ 		<!-- Copy cygate gwt compile -->
+ 		<copy todir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}">
+ 			<fileset dir="${onecmdb.gwt.appl.build}/${onecmdb.gwt.appl.entrypoint.class}"/>
+ 		</copy>
+ 		<copy file="${onecmdb.gwt.appl.build}/${onecmdb.gwt.appl.entrypoint.class}/CMDBApplication.html" tofile="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}/index.html"/>
+ 	 		
+ 		<!-- jar it to a war -->
+ 		<jar destfile="${onecmdb.gwt.appl.war.dest}" basedir="${onecmdb.gwt.appl.war.build}/${onecmdb.gwt.appl.war.name}" />
+ 	</target>
+ 
+	<target name="setup.src">
+		<!-- copy all sources -->
+		<copy todir="${onecmdb.gwt.appl.build.src}/src">
+				<fileset dir="${onecmdb.gwt.appl.src}"
+					excludes="**/CSV" />
+		</copy>	
+		
+		<!-- Copy all classes -->
+		<copy todir="${build}/src-lib">
+					<fileset dir="${onecmdb.gwt.appl.src}"
+						excludes="**/CSV" />
+		</copy>	
+		<copy todir="${build}/src-lib">
+						<fileset dir="${build}/classes"
+							excludes="**/CSV" />
+		</copy>	
+		
+		<copy file="build.xml" toFile="${onecmdb.gwt.appl.build.src}/build.xml"/>
+		
+		<jar destfile="${onecmdb.gwt.appl.build.src}/onecmdb-desktop.jar">
+				<fileset dir="${build}/src-lib"/>
+		</jar>
+		
+		<zip destfile="${build}/onecmdb-desktop-src-${onecmdb.gwt.desktop.version}.zip" >
+			<zipfileset dir="${onecmdb.gwt.appl.build.src}" prefix="onecmdb-desktop-src-${onecmdb.gwt.desktop.version}"/>
+		</zip>
+	</target>
+	
+	<target name="cleanAndDist" depends="clean, dist"/>
+	
+	
+</project>

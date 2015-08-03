@@ -1,0 +1,137 @@
+<project name="CMDB Applet Applications" default="readme">
+
+
+	<tstamp prefix="build" />
+	
+	<!-- used to identify version classes in main source directories -->
+	<regexp id="RE_VERSION_STRING" pattern="(VERSION_STRING *= *).*"/>
+	
+	<!-- 
+	   -	Override default values via these files
+	   -->
+	<property name="build" location="build" />
+	<property name="src" location="src" />
+	<property name="keystore" location="applet-keystore" />
+	
+	
+	<!-- personal build settings -->
+	<property file="build.properties" />
+	<property file="${org.onecmdb.dir}/onecmdb.properties" />
+	
+	<!-- OneCMDB Libs -->
+	<property name="onecmdb.core.jar" location="${org.onecmdb.core.dir}/build/onecmdb-core-${onecmdb.core.version}.jar" />
+	<property name="onecmdb.utils.jar" location="${org.onecmdb.utils.dir}/build/onecmdb-utils-${onecmdb.utils.version}.jar" />
+
+	<path id="classpath.depts">
+		<fileset dir="${org.onecmdb.applet.path}">
+			<include name="**/*.jar"/>
+		</fileset>
+	</path>
+	
+	
+
+	<!-- =================================================================== --> 
+	<!--                                                                     -->
+	<!-- README                                                              -->
+	<!--	                                                                 -->
+	<!-- =================================================================== --> 
+	<target name="readme">
+		<loadfile property="README" srcfile="README" />
+		<echo>${README}</echo>		
+	</target>
+	
+	<target name="clean">
+		<delete dir="${build}" failonerror="false"/>
+	</target>
+	
+	<target name="compile">
+		<mkdir dir="${build}/classes"/>
+		<javac destdir="${build}/classes">
+			<src path="${src}" />
+			<include name="**"/>
+			<classpath path="${onecmdb.core.jar}"/>
+			<classpath path="${onecmdb.utils.jar}"/>
+			<classpath refid="classpath.depts" />
+		</javac>
+	</target>
+	
+	<target name="setup-dependence">
+		<mkdir dir="${build}/dependencies" />
+		<unjar dest="${build}/dependencies">
+			<fileset dir="${org.onecmdb.applet.path}">
+				<include name="**/*.jar"/>
+			</fileset>
+		</unjar>
+		<unjar dest="${build}/dependencies">
+			<fileset file="${onecmdb.core.jar}"></fileset>	
+		</unjar>
+		<unjar dest="${build}/dependencies">
+				<fileset file="${onecmdb.utils.jar}"></fileset>	
+			</unjar>
+			
+		<jar destfile="${build}/libs/onecmdb-applet-dependencies.jar">
+			<fileset dir="${build}/dependencies"/>
+		</jar>
+	</target>
+	
+	<target name="jar" depends="compile">
+		<mkdir dir="${build}/libs"/>
+		<jar destfile="${build}/libs/onecmdb-applet.jar">
+					<fileset dir="${build}/classes"/>
+		</jar>
+	</target>
+	
+	<target name="genAppletKey">
+		<genkey alias="onecmdb-applet" storepass="${onecmdb.applet.keystorepass}" keystore="${keystore}" validity="365">
+		  <dname>
+		    <param name="CN" value="Lokomo Systems AB"/>
+		    <param name="OU" value="Lokomo Systems AB"/>
+		    <param name="O"  value="Lokomo Systems AB"/>
+		    <param name="C"  value="SE"/>
+		  </dname>
+		</genkey>
+	</target>
+	
+	<target name="signe-jars" depends="jar, setup-dependence">
+		<mkdir dir="${build}/signed"/>
+		<signjar destDir="${build}/signed"
+		    alias="onecmdb-applet" keystore="${keystore}"
+		    storepass="${onecmdb.applet.keystorepass}"
+		    preservelastmodified="true">
+		  <path>
+		    <fileset dir="${build}/libs" includes="*.jar" />
+		  </path>
+		  <flattenmapper />
+		</signjar>
+	</target>
+	
+	<target name="dist" depends="compile, jar, setup-dependence, setup.src">
+		
+		<copy todir="${repositoryLocation}">
+		 		<fileset dir="${build}/libs"/>
+		 </copy>
+		
+	</target>
+	
+	<target name="dist-sign" depends="compile, jar, signe-jars, setup.src">
+		<copy todir="${repositoryLocation}">
+		 		<fileset dir="${build}/signed"/>
+		 </copy>
+	</target>
+	
+	<target name="setup.src">
+		<!-- copy all sources -->
+		<copy todir="${build}/source/src">
+				<fileset dir="${src}"
+					excludes="**/CSV" />
+		</copy>	
+		
+		<copy file="build.xml" toFile="${build}/source/build.xml"/>
+		
+		<zip destfile="${build}/onecmdb-graph-applet-src.zip" >
+			<zipfileset dir="${build}/source" prefix="onecmdb-graph-applet"/>
+		</zip>
+		
+	</target>
+	
+</project>

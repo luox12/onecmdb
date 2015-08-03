@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<onecmdb>
+	<templates>
+		
+		
+		<template alias="Platform">
+			<derivedFrom><ref alias="HW"/></derivedFrom>
+			<attribute alias="name">
+				<simpleType>xs:string</simpleType>
+			</attribute>			
+		</template>
+	
+		<template alias="NIC">
+			<derivedFrom><ref alias="HW"/></derivedFrom>
+			<attribute alias="name">
+				<simpleType>xs:string</simpleType>
+			</attribute>			
+			<attribute alias="platform">
+				<complexType>
+					<ref alias="Platform"/>
+					<refType><ref alias="ComposedOf"/></refType>
+				</complexType>
+			</attribute>
+		</template>
+		
+		<template alias="Connection">
+			<derivedFrom><ref alias="HW"/></derivedFrom>
+			<attribute alias="name">
+				<simpleType>xs:string</simpleType>
+			</attribute>		
+				
+			<attribute alias="c1">
+				<complexType>
+					<ref alias="NIC"/>
+					<refType><ref alias="ComposedOf"/></refType>
+				</complexType>
+			</attribute>
+			<attribute alias="c2">
+				<complexType>
+					<ref alias="NIC"/>
+					<refType><ref alias="ComposedOf"/></refType>
+				</complexType>
+			</attribute>
+			
+		</template>
+		
+	</templates>
+	
+	<instances></instances>
+</onecmdb>

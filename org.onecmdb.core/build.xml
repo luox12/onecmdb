@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="OneCMDB Core classes" default="readme">
+	<tstamp prefix="build" />
+	
+	<!-- used to identify version classes in main source directories -->
+	<regexp id="RE_VERSION_STRING" pattern="(VERSION_STRING *= *).*"/>
+	
+	<!-- 
+	   -	Override default values via these files
+	   -->
+	<property name="build" location="build" />
+	
+	<!-- personal build settings -->
+	<property file="build.properties" />
+	<property file="${org.onecmdb.dir}/onecmdb.properties" />
+		
+	
+	<property name="onecmdb.core.src" location="src/java" />
+	<property name="onecmdb.core.conf" location="src/conf" />
+	
+	<!-- repository of 3rd party dependcies -->
+	<path id="classpath.depts">
+		<fileset dir="${org.onecmdb.dir}/3rdparty-depts/lib">
+			<include name="**/*.jar"/>
+		</fileset>
+	</path>
+
+	<!-- only needed at compile time -->
+	<path id="classpath.compile-time">
+		<fileset dir="${org.onecmdb.dir}/3rdparty-depts/compile-time">
+			<include name="**/*.jar"/>
+		</fileset>
+	</path>
+	
+	<!-- =================================================================== --> 
+	<!--                                                                     -->
+	<!-- README                                                              -->
+	<!--	                                                                 -->
+	<!-- =================================================================== --> 
+	<target name="readme">
+		<loadfile property="README" srcfile="README" />
+		<echo>${README}</echo>		
+	</target>
+		
+	<target name="clean">
+		<delete dir="${build}" failonerror="false"/>
+	</target>
+	
+	<target name="dist" depends="onecmdb.core.jar">
+	</target>
+		
+	<target name="onecmdb.core.compile">
+		<mkdir dir="${build}/classes"/>
+		<javac destdir="${build}/classes">
+			<src path="${onecmdb.core.src}" />
+			<include name="**"/>
+					
+			<classpath refid="classpath.depts" />
+			<classpath refid="classpath.compile-time" />
+		</javac>
+	</target>
+	
+	<target name="onecmdb.core.jar" depends="onecmdb.core.compile">
+		<jar destfile="${build}/onecmdb-core-${onecmdb.core.version}.jar">
+			<fileset dir="${build}/classes"/>
+		</jar>
+	</target>
+	
+	
+</project>

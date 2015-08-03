@@ -1,0 +1,87 @@
+<project name="OneCMDB Nagios Utils classes" default="readme">
+
+
+	<tstamp prefix="build" />
+	
+	<!-- used to identify version classes in main source directories -->
+	<regexp id="RE_VERSION_STRING" pattern="(VERSION_STRING *= *).*"/>
+	
+	<!-- 
+	   -	Override default values via these files
+	   -->
+	<property name="build" location="build" />
+	
+	<!-- personal build settings -->
+	<property file="build.properties" />
+	<property file="${org.onecmdb.dir}/onecmdb.properties" />
+	
+	<property name="onecmdb.core.jar" location="${org.onecmdb.core.dir}/build/onecmdb-core-${onecmdb.core.version}.jar" />
+	<property name="onecmdb.utils.jar" location="${org.onecmdb.utils.dir}/build/onecmdb-utils-${onecmdb.utils.version}.jar" />
+	<property name="onecmdb.nagios.src" location="src" />
+	<property name="onecmdb.nagios.repository" location="repository" />
+	
+	<!-- repository of 3rd party dependcies -->
+	<path id="classpath.depts">
+		<fileset dir="${org.onecmdb.dir}/3rdparty-depts/lib">
+			<include name="**/*.jar"/>
+		</fileset>
+	</path>
+
+	<!-- only needed at compile time -->
+	<path id="classpath.compile-time">
+		<fileset dir="${org.onecmdb.dir}/3rdparty-depts/compile-time">
+			<include name="**/*.jar"/>
+		</fileset>
+	</path>
+	
+	<!-- =================================================================== --> 
+	<!--                                                                     -->
+	<!-- README                                                              -->
+	<!--	                                                                 -->
+	<!-- =================================================================== --> 
+	<target name="readme">
+		<loadfile property="README" srcfile="README" />
+		<echo>${README}</echo>		
+	</target>
+		
+	<target name="clean">
+		<delete dir="${build}" failonerror="false"/>
+	</target>
+	
+	<target name="dist" depends="onecmdb.nagios.jar">
+	</target>
+		
+	<target name="onecmdb.nagios.compile">
+		<mkdir dir="${build}/classes"/>
+		<javac destdir="${build}/classes">
+			<src path="${onecmdb.nagios.src}" />
+			<include name="**"/>
+			<classpath path="${onecmdb.core.jar}"/>
+			<classpath path="${onecmdb.utils.jar}"/>
+			<classpath refid="classpath.depts" />
+			<classpath refid="classpath.compile-time" />
+		</javac>
+	</target>
+	
+	<target name="onecmdb.nagios.jar" depends="onecmdb.nagios.compile">
+		<copy todir="${build}/repository">
+		 	<fileset dir="${onecmdb.nagios.repository}" excludes="**/CSV"/>
+		</copy>
+		
+		<jar destfile="${build}/repository/MDR/NAGIOS/lib/onecmdb-nagios-utils.jar">
+			<fileset dir="${build}/classes"/>
+		</jar>
+		<mkdir dir="${build}/lib"/>
+		
+		<copy todir="${build}/lib" file="${build}/repository/MDR/Nagios/lib/onecmdb-nagios-utils.jar"/> 
+		<copy file="${build}/lib/onecmdb-nagios-utils.jar" toDir="${build}/repository/MDR/Nagios2BasicModel/lib"/> 
+		
+		<zip destfile="${build}/repository.zip"
+				      basedir="${build}"
+					  includes="repository/**"	
+					  excludes="**/CSV"
+		/>
+	</target>
+	
+	
+</project>

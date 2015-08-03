@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<onecmdb>
+<templates>
+	<template alias="Graph">
+		<derivedFrom><ref alias="Root"/></derivedFrom>
+	</template>
+
+	<!-- Graph Templates -->
+	<template alias="PageInfo">
+		<derivedFrom><ref alias="Graph"/></derivedFrom>
+	</template>
+
+	<template alias="GraphQuery">
+		<derivedFrom><ref alias="Graph"/></derivedFrom>
+		<attribute attAlias="itemSelector">
+			<complexType>
+		</attribute>
+	</template>
+	
+	<template alias="ItemSelector">
+			<derivedFrom><ref alias="Graph"/></derivedFrom>
+			<attribute attAlias="id">
+				<simpleType>xs:string</simpleType>
+			</attribute>
+			<attribute attAlias="templateAlias">
+				<simpleType>xs:string</simpleType>
+			</attribute>
+			<attribute attAlias="pageInfo">
+				<complexType>
+					<type><ref alias="PageInfo"/></type>
+					<refType><ref alias="ComposedOf"/></refType>	
+				</complexType>
+			</attribute>
+			<attribute attAlias="constraint">
+				<complexType>
+					<type><ref alias="ItemConstraint"/></type>
+					<refType><ref alias="ComposedOf"/></refType>	
+				</complexType>
+			</attribute>
+	</template>
+
+	<template alias="ItemOffspringSelector">
+		<derivedFrom>
+			<ref alias="ItemSelector" />
+		</derivedFrom>
+		<attribute attAlias="templateAlias">
+			<simpleType>xs:boolean</simpleType>
+		</attribute>
+	</template>
+
+</templates>
+</onecmdb>
