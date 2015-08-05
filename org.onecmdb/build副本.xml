@@ -1,0 +1,1351 @@
+ <project name="OneCMDB | Single Edition" default="readme">
+	<!— one day i will change ant to maven —>
+
+	<tstamp prefix="build" />
+	
+	
+	<!-- 
+	   -	Override default calues via thease files
+	   -->
+	
+	<!-- personal build settings -->
+	<property file="build.properties" />
+
+	<!-- for local deployments -->
+	<property file="catalina.properties" />
+
+	<!-- product information -->	
+	<property file="onecmdb.properties" />
+
+	
+	<!-- 
+	   -	The name of a shell which can interpret simple GNU shell (sh)
+	   -    scripts on the current platform 
+	   -->
+	<property name="SHELL" value="bash"  />
+
+
+	<target name="onecmdb.win32.viProductVersion">
+		<exec outputproperty="onecmdb.win32.viProductVersion" 
+			executable="${SHELL}" >
+			<arg value="-c" />
+			<arg value="echo '${onecmdb.version}' |
+				awk -F'.' '{
+					n=NF;
+					for (i=1; i&lt;=NF;i++) {
+						if (i&gt;1) printf &quot;&quot;.&quot;&quot;; 
+						gsub(/[^0-9]/,&quot;&quot;&quot;&quot;, $i); 
+						printf $i;
+					};					
+					while (n&lt;4) {
+						printf &quot;&quot;.0&quot;&quot;;
+						n++;
+					}
+					print &quot;&quot;&quot;&quot;;
+				}'"/>
+		</exec>
+	</target>
+	
+	
+	<!-- 
+	   -	Directory where to put built artifacts. Sub folders may be
+	   -    created by individual targets, but they should always obey the
+	   -    base directory.
+	   -->
+	<property name="depts" location="3rdparty-depts" />
+
+	<!-- 
+	   -	Directory where to put built artifacts. Sub folders may be
+	   -    created by individual targets, but they should always obey the
+	   -    base directory.
+	   -->
+	<property name="build" location="build" />
+
+	<property name="onecmdb.license" location="inst/LICENSE.txt" />
+	<property name="onecmdb.3rdpartylicenses" location="inst/3RDPARTYLICENSES.txt" />
+	<property name="onecmdb.changes" location="inst/CHANGES.txt" />
+
+	
+	<property name="core.dir" location="../org.onecmdb.core" />
+	<property name="core.src" location="${core.dir}/src" />
+	<property name="core.build" location="${build}/core" />
+	<property name="core.jar" location="${build}/core/lib/onecmdb-core-${onecmdb.core.version}.jar" />
+
+	<property name="utils.dir" location="../org.onecmdb.utils" />
+	<property name="utils.src" location="${utils.dir}/src" />
+	<property name="utils.build" location="${build}/utils" />
+	<property name="utils.jar" location="${utils.build}/lib/onecmdb-utils-${onecmdb.utils.version}.jar" />
+	
+	<property name="web.dir" location="../org.onecmdb.web" />
+	<property name="web.src" location="${web.dir}/src" />
+	<property name="web.build" location="${build}/web" />
+	<property name="web.name" value="onecmdb" />
+	<property name="web.jar" location="${web.build}/lib/onecmdb-web-${onecmdb.web.version}.jar" />
+
+	<property name="war.dest" location="${web.build}/onecmdb.war" />
+
+
+	<property name="onecmdb.gwt.toolkit.src" location="${onecmdb.gwt.toolkit.dir}/src" />
+	<property name="onecmdb.gwt.toolkit.build" location="${build}/gwt.toolkit" />
+	<property name="onecmdb.gwt.toolkit.jar" location="${onecmdb.gwt.toolkit.build}/lib/onecmdb-gwt-toolkit-${onecmdb.gwt.toolkit.version}.jar" />
+
+	<property name="onecmdb.gwt.itil.src" location="${onecmdb.gwt.itil.dir}/src" />
+	<property name="onecmdb.gwt.itil.build" location="${build}/gwt.itil" />
+	<property name="onecmdb.gwt.itil.war.build" location="${onecmdb.gwt.itil.build}/war" />
+	<property name="onecmdb.gwt.itil.war.dest" location="${onecmdb.gwt.itil.build}/itil.war" />
+ 	
+ 	<property name="onecmdb.gwt.desktop.war.dest" location="${build}/gwt.desktop" />
+ 	<property name="onecmdb.gwt.desktop.repository.dest" location="${build}/desktop-repository" />
+ 	
+	<property name="onecmdb.nagios.utils" location="${build}/desktop-repository" />
+ 	
+	<property name="onecmdb.gwt.itil.entrypoint.class" value="org.onecmdb.ui.gwt.itil.ITILApplication"/>
+	
+ 	<property name="onecmdb.gwt.modeller.src" location="${onecmdb.gwt.modeller.dir}/src" />
+	<property name="onecmdb.gwt.modeller.build" location="${build}/gwt.modeller" />
+	<property name="onecmdb.gwt.modeller.war.build" location="${onecmdb.gwt.modeller.build}/war" />
+	<property name="onecmdb.gwt.modeller.war.dest" location="${onecmdb.gwt.modeller.build}/onecmdb-modeller.war" />
+	<property name="onecmdb.gwt.modeller.entrypoint.class" value="org.onecmdb.ui.gwt.modeller.OneCMDBModelCreator"/>
+ 	
+ 	<property name="sources.dest.tar.gz" location="src.tar.gz" />
+	<property name="sources.dest.zip" location="src.zip" />
+	
+	<property name="catalina.home" location="C:/apps/apache/apache-tomcat-5.5.16" />
+
+	<property name="onecmdb.modelFile" location="${core.build}/classes/Model.xml" />
+	<basename file="${onecmdb.modelFile}" property="onecmdb.modelFilename" />
+
+
+	<!-- repository of 3rd party dependcies -->
+	<path id="classpath.depts">
+		<fileset dir="3rdparty-depts/lib">
+			<include name="**/*.jar"/>
+		</fileset>
+	</path>
+
+	<!-- only needed at compile time -->
+	<path id="classpath.compile-time">
+		<fileset dir="3rdparty-depts/compile-time">
+			<include name="**/*.jar"/>
+		</fileset>
+	</path>
+
+	<target name="update" description="Updates the files from CVS" 
+	depends="core.update,utils.update,web.update">
+		
+		<cvs command="update -Pd" dest="."/>
+		
+	</target>
+
+	<target name="headers" depends="core.headers,web.headers,utils.headers" 
+		description="Replaces the header in source files with `header.java.tpl' supplied in this directory " 
+	/>
+
+
+	<target name="compile" depends="core.compile,utils.compile,web.compile" 
+		description="Compile source files">
+		<echo>Targets compiled</echo>
+	</target>
+
+	<target name="changelog" depends="core.changelog,utils.changelog,web.changelog" />
+	
+	<target name="dists" 
+		description="Creats distributions for supported platforms"
+		depends="setup.win32.dist,setup.linux.i386.dist">
+		<echo>Targets compiled</echo>
+	</target>
+	
+	<target name="jars" depends="core.jar,utils.jar,web.jar"
+		description="Create jar fles">
+		<echo>Jars created</echo>
+	</target>
+
+	
+	<target name="clean" depends="setup.clean, war.clean, web.clean, core.clean, utils.clean"
+		description="Remove all produced artifacts">
+		<delete dir="${build}" failonerror="false"/>
+	</target>
+
+	<target name="vars" description="Show variable values">
+		<echo>${catalina.home}</echo>
+	</target>
+
+	<target name="init">
+		<mkdir dir="${build}"/>
+	</target>
+
+ 	<tstamp prefix="start">
+ 	      <format property="touch.time" pattern="yyyy-MM-dd HH:mm" />
+ 	</tstamp>
+
+
+	<!-- used to identify version classes in main source directories -->
+	<regexp id="RE_VERSION_STRING" pattern="(VERSION_STRING *= *).*"/>
+	<regexp id="RE_BUILD_DATE_STRING" pattern="(BUILD_DATE_STRING *= *).*"/>
+
+	
+	<!-- =================================================================== --> 
+	<!--                                                                     -->
+	<!-- README                                                              -->
+	<!--	                                                                 -->
+	<!-- =================================================================== --> 
+
+	<target name="readme">
+		<loadfile property="README" srcfile="README" />
+	    <echo>${README}</echo>		
+	</target>
+	
+	
+	<!-- =================================================================== --> 
+	<!--                                                                     -->
+	<!-- CORE                                                                -->
+	<!--	                                                                 -->
+	<!-- =================================================================== --> 
+	<target name="core.headers">
+		<exec executable="${SHELL}">
+			<arg file="makeheader-all.sh" />			
+			<arg file="${core.src}" />
+			<arg value="org.onecmdb.core" /> 
+		</exec>
+	</target>
+	
+	<target name="core.update">
+		<cvs command="update -Pd" dest="${core.src}"/>
+	</target>
+	
+	<!-- create a tag in CVS -->
+	<target name="core.cvs.tag">
+		<cvs dest="${core.dir}" command="tag -F R_${onecmdb.core.cvs.tag}"  />
+	</target>
+
+	<target name="core.changelog">
+		<exec executable="${SHELL}">
+			<arg file="runcvs2cl.sh" />			
+			<arg file="${core.dir}" />
+			<arg file="ChangeLog.core" />
+			<arg value="trunk" />
+		</exec>
+	</target>
+
+	
+
+	<target name="core.tag">
+		<cvs command="tag ${core.cvs.tag}" />
+	</target>
+
+	
+	<target name="core.init" depends="init">
+		<mkdir dir="${core.build}/classes"/>
+		<mkdir dir="${core.build}/lib"/>
+	</target>
+
+	
+	<target name="core.version">
+		<replaceregexp 
+			byline="true"
+			file="${core.src}/java/org/onecmdb/core/Version.java">
+			<regexp refid="RE_VERSION_STRING"/> 
+			<substitution expression="\1&quot;${onecmdb.core.version}&quot;;" />
+		</replaceregexp>
+		<replaceregexp 
+					byline="true"
+					file="${core.src}/java/org/onecmdb/core/Version.java">
+					<regexp refid="RE_BUILD_DATE_STRING"/> 
+					<substitution expression="\1&quot;${start.touch.time}&quot;;" />
+		</replaceregexp>
+	</target>
+
+	
+	<target name="core.compile" depends="core.init,core.version">
+		<javac destdir="${core.build}/classes">
+			<src path="${core.src}/java" />
+			<src path="${core.src}/conf" />
+			<include name="**"/>
+			<classpath refid="classpath.compile-time" />
+			<classpath refid="classpath.depts" />
+		</javac>
+
+		<copy todir="${core.build}/classes">
+			<fileset dir="${core.src}/java" excludes="**/*.java" />
+			<fileset dir="${core.src}/conf" excludes="**/*.java" />
+		</copy>
+
+	</target>
+	
+	<target name="core.jar" depends="core.compile">
+		<jar destfile="${core.jar}">
+			<fileset dir="${core.build}/classes" />
+		</jar>
+	</target>
+	
+
+	<target name="core.clean">
+		<delete dir="${core.build}" failonerror="false"/>
+	</target>
+	
+	
+	<!-- =================================================================== --> 
+	<!-- =                                                                   -->
+	<!-- = UTILS                                                             -->
+	<!-- =	                                                                 -->
+	<!-- =================================================================== --> 
+	<target name="utils.headers">
+			<exec executable="${SHELL}">
+				<arg file="makeheader-all.sh" />			
+				<arg file="${utils.src}" />
+				<arg value="org.onecmdb.utils" /> 
+			</exec>
+	</target>
+	
+	<target name="utils.update">
+		<cvs command="update -Pd" dest="${utils.src}"/>
+	</target>
+
+	<!-- create a tag in CVS -->
+	<target name="utils.cvs.tag">
+		<cvs dest="${utils.dir}" command="tag -F R_${onecmdb.utils.cvs.tag}"  />
+	</target>
+
+	<target name="utils.changelog">
+		<exec executable="${SHELL}">
+			<arg file="runcvs2cl.sh" />			
+			<arg file="${utils.dir}" />
+			<arg file="ChangeLog.utils" />
+			<arg value="trunk" />
+		</exec>
+	</target>
+
+	
+	
+	
+	<target name="utils.init" depends="init">
+		<mkdir dir="${utils.build}/classes"/>
+		<mkdir dir="${utils.build}/lib"/>
+	</target>
+
+	<target name="utils.version">
+		<replaceregexp 
+			byline="true"
+			file="${utils.src}/java/org/onecmdb/utils/Version.java">
+			<regexp refid="RE_VERSION_STRING"/> 
+			<substitution expression="\1&quot;${onecmdb.utils.version}&quot;;" />
+		</replaceregexp>
+	</target>
+	
+	
+	<target name="utils.compile" depends="core.compile,utils.init,utils.version">
+		<javac destdir="${utils.build}/classes">
+			<src path="${utils.src}/java" />
+			<include name="**"/>
+			<classpath path="${core.build}/classes" />
+			<classpath refid="classpath.depts" />
+			<classpath refid="classpath.compile-time" />
+		</javac>
+	</target>
+
+	<target name="utils.jar" depends="utils.compile">
+		<jar destfile="${utils.jar}">
+			<fileset dir="${utils.build}/classes" />
+		</jar>
+	</target>
+
+	
+	<target name="utils.clean">
+		<delete dir="${utils.build}" failonerror="false"/>
+	</target>
+
+	<!-- =================================================================== --> 
+	<!-- =                                                                   -->
+	<!-- = WEB                                                               -->
+	<!-- =	                                                                 -->
+	<!-- =================================================================== --> 
+
+	<target name="web.headers">
+		<exec executable="bash">
+			<arg file="makeheader-all.sh" />			
+			<arg file="${web.src}" />
+			<arg value="org.onecmdb.web" /> 
+		</exec>
+	</target>
+	
+	<target name="web.update">
+		<cvs command="update -Pd" dest="${web.src}"/>
+	</target>
+	
+	<!-- create a tag in CVS -->
+	<target name="web.cvs.tag">
+		<cvs dest="${web.dir}" command="tag -F R_${onecmdb.web.cvs.tag}"  />
+	</target>
+	
+	<target name="web.changelog">
+		<exec executable="${SHELL}">
+			<arg file="runcvs2cl.sh" />			
+			<arg file="${web.dir}" />
+			<arg file="ChangeLog.web" />
+			<arg value="trunk" />
+		</exec>
+	</target>
+
+	
+	
+	
+	<target name="web.init" depends="init">
+		<mkdir dir="${web.build}/classes"/>
+		<mkdir dir="${web.build}/lib"/>
+	</target>
+
+	<target name="web.version">
+		<replaceregexp 
+			byline="true"
+			file="${web.src}/java/org/onecmdb/web/Version.java">
+			<regexp refid="RE_VERSION_STRING"/> 
+			<substitution expression="\1&quot;${onecmdb.web.version}&quot;;" />
+		</replaceregexp>
+	</target>
+
+	<target name="web.compile" depends="core.compile,web.init,web.version">
+		<javac destdir="${web.build}/classes">
+			<src path="${web.src}/java" />
+			<include name="**"/>
+			<classpath path="${core.build}/classes" />
+			<classpath refid="classpath.depts" />
+			<classpath refid="classpath.compile-time" />
+		</javac>
+
+		<copy todir="${web.build}/classes">
+			<fileset dir="${web.src}/java" excludes="**/*.java" />
+		</copy>
+	</target>
+
+	<target name="web.jar" depends="web.compile">
+		<jar destfile="${web.jar}">
+			<fileset dir="${web.build}/classes" />
+		</jar>
+	</target>
+	
+	<target name="web.clean">
+		<delete dir="${web.build}" failonerror="false"/>
+	</target>
+
+
+	<!-- =================================================================== --> 
+	<!-- =                                                                   -->
+	<!-- = GWT - Toolkit (Server + client help widgets) 					 -->
+	<!-- =	                                                                 -->
+	<!-- =================================================================== --> 
+ 	<target name="onecmdb.gwt.toolkit.init" depends="init">
+ 			<mkdir dir="${onecmdb.gwt.toolkit.build}/classes"/>
+ 			<mkdir dir="${onecmdb.gwt.toolkit.build}/lib"/>
+ 	</target>
+ 	
+ 	<target name="onecmdb.gwt.toolkit.version">
+ 		<replaceregexp 
+ 			byline="true"
+ 			file="${onecmdb.gwt.toolkit.core.src}/org/onecmdb/ui/gwt/toolkit/client/Version.java">
+ 			<regexp refid="RE_VERSION_STRING"/> 
+ 			<substitution expression="\1&quot;${onecmdb.gwt.toolkit.version}&quot;;" />
+ 		</replaceregexp>
+ 	</target>
+
+ 	<target name="onecmdb.gwt.toolkit.compile" depends="core.compile, onecmdb.gwt.toolkit.init">
+		<javac destdir="${onecmdb.gwt.toolkit.build}/classes">
+				<src path="${onecmdb.gwt.toolkit.src}" />
+				<include name="**"/>
+				<classpath path="${core.build}/classes" />
+				<classpath refid="classpath.depts" />
+				<classpath refid="classpath.compile-time" />
+		</javac>
+	</target>
+
+ 	<target name="onecmdb.gwt.toolkit.jar" depends="onecmdb.gwt.toolkit.compile">
+ 			<jar destfile="${onecmdb.gwt.toolkit.jar}">
+ 				<fileset dir="${onecmdb.gwt.toolkit.build}/classes" />
+ 			</jar>
+ 	</target>
+	
+ 	<!-- =================================================================== --> 
+	<!-- =                                                                   -->
+	<!-- = GWT - ITIL Application  											 -->
+	<!-- =	                                                                 -->
+	<!-- =================================================================== --> 
+	<target name="onecmdb.gwt.itil.version">
+ 		<replaceregexp 
+ 			byline="true"
+ 			file="${onecmdb.gwt.itil.src}/org/onecmdb/ui/gwt/itil/client/Version.java">
+ 			<regexp refid="RE_VERSION_STRING"/> 
+ 			<substitution expression="\1&quot;${onecmdb.gwt.itil.version}&quot;;" />
+ 		</replaceregexp>
+ 	</target>
+	
+ 	<target name="onecmdb.gwt.itil.compile" depends="onecmdb.gwt.toolkit.compile">
+		<java classname="com.google.gwt.dev.GWTCompiler" fork="true">
+			<jvmarg value="-Xmx1024M"/>
+			<classpath path="${onecmdb.gwt.itil.src}"/>
+			<classpath path="${onecmdb.gwt.toolkit.src}"/>
+			<classpath refid="classpath.depts" />
+			<classpath refid="classpath.compile-time" />
+							
+			<arg value="-out"/>
+			<arg value="${onecmdb.gwt.itil.build}"/>
+			<arg value="${onecmdb.gwt.itil.entrypoint.class}"/>
+		</java>
+	</target>
+ 	
+ 	<target name="onecmdb.gwt.itil.war" depends="core.jar,onecmdb.gwt.toolkit.jar,onecmdb.gwt.itil.compile">
+ 		<!-- Create structure -->
+ 		<mkdir dir="${onecmdb.gwt.itil.war.build}"/>
+ 		<mkdir dir="${onecmdb.gwt.itil.war.build}/itil"/>
+ 		<mkdir dir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF"/>
+ 		<mkdir dir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/lib"/>
+ 		<mkdir dir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/classes"/>
+ 		
+ 		<!-- Copy web.xml -->
+ 		<copy todir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF" file="${onecmdb.gwt.toolkit.dir}/conf/web.xml"/>
+ 		
+ 		<!-- Copy libs -->
+ 		<!-- OneCMDB libs. -->
+ 		<copy file="${onecmdb.gwt.toolkit.jar}" todir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/lib"/>
+ 		
+ 		<copy file="${core.jar}" todir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/lib"/>
+ 		<!-- 3rd part libs. -->
+ 		<copy file="3rdparty-depts/compile-time/gwt/gwt-servlet.jar" todir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/lib"/>
+ 		<copy file="3rdparty-depts/compile-time/gwt/gwtiger.jar" todir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/lib"/>
+ 		<copy file="3rdparty-depts/lib/activation-1.1.jar" todir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/lib"/>         
+ 		<copy file="3rdparty-depts/lib/dom4j-1.6.jar" todir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/lib"/>       
+ 		<copy file="3rdparty-depts/lib/xfire-all-1.2.6.jar" todir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/lib"/>
+ 		<copy file="3rdparty-depts/lib/commons-codec-1.3.jar" todir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/lib"/>      
+ 		<copy file="3rdparty-depts/lib/stax-api-1.0.1.jar" todir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/lib"/>
+ 		<copy file="3rdparty-depts/lib/commons-httpclient.jar" todir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/lib"/>     
+ 		<copy file="3rdparty-depts/lib/jdom-1.0.jar" todir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/lib"/>        
+ 		<copy file="3rdparty-depts/lib/wsdl4j-1.6.1.jar" todir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/lib"/>
+ 		<copy file="3rdparty-depts/lib/commons-logging-1.0.4.jar" todir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/lib"/>  
+ 		<copy file="3rdparty-depts/lib/jsr173_api-1.0.jar" todir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/lib"/>  
+ 		<copy file="3rdparty-depts/lib/wstx-asl-3.2.0.jar" todir="${onecmdb.gwt.itil.war.build}/itil/WEB-INF/lib"/>
+ 		 
+ 		<!-- Copy itil compile -->
+ 		<copy todir="${onecmdb.gwt.itil.war.build}/itil">
+ 			<fileset dir="${onecmdb.gwt.itil.build}/${onecmdb.gwt.itil.entrypoint.class}"/>
+ 		</copy>
+ 		
+ 		<!-- jar it to a war -->
+ 		<jar destfile="${onecmdb.gwt.itil.war.dest}" basedir="${onecmdb.gwt.itil.war.build}/itil" />
+ 	</target>
+ 	 	
+ 	
+ 	<!-- =================================================================== --> 
+	<!-- =                                                                   -->
+	<!-- = GWT - Modeller Application  											 -->
+	<!-- =	                                                                 -->
+	<!-- =================================================================== --> 
+	<target name="onecmdb.gwt.modeller.version">
+ 		<replaceregexp 
+ 			byline="true"
+ 			file="${onecmdb.gwt.modeller.src}/org/onecmdb/ui/gwt/modeller/client/Version.java">
+ 			<regexp refid="RE_VERSION_STRING"/> 
+ 			<substitution expression="\1&quot;${onecmdb.gwt.modeller.version}&quot;;" />
+ 		</replaceregexp>
+ 	</target>
+	
+ 	<target name="onecmdb.gwt.modeller.compile" depends="onecmdb.gwt.toolkit.compile">
+		<java classname="com.google.gwt.dev.GWTCompiler" fork="true">
+			<jvmarg value="-Xmx1024M"/>
+			<classpath path="${onecmdb.gwt.modeller.src}"/>
+			<classpath path="${onecmdb.gwt.toolkit.src}"/>
+			<classpath refid="classpath.depts" />
+			<classpath refid="classpath.compile-time" />
+							
+			<arg value="-out"/>
+			<arg value="${onecmdb.gwt.modeller.build}"/>
+			<arg value="${onecmdb.gwt.modeller.entrypoint.class}"/>
+		</java>
+	</target>
+ 	
+ 	<target name="onecmdb.gwt.modeller.war" depends="core.jar,onecmdb.gwt.toolkit.jar,onecmdb.gwt.modeller.compile">
+ 		<!-- Create structure -->
+ 		<mkdir dir="${onecmdb.gwt.modeller.war.build}"/>
+ 		<mkdir dir="${onecmdb.gwt.modeller.war.build}/WEB-INF"/>
+ 		<mkdir dir="${onecmdb.gwt.modeller.war.build}/WEB-INF/lib"/>
+ 		<mkdir dir="${onecmdb.gwt.modeller.war.build}/WEB-INF/classes"/>
+ 		
+ 		<!-- Copy web.xml -->
+ 		<copy todir="${onecmdb.gwt.modeller.war.build}/WEB-INF" file="${onecmdb.gwt.toolkit.dir}/conf/web.xml"/>
+ 		
+ 		<!-- Copy libs -->
+ 		<!-- OneCMDB libs. -->
+ 		<copy file="${onecmdb.gwt.toolkit.jar}" todir="${onecmdb.gwt.modeller.war.build}/WEB-INF/lib"/>
+ 		
+ 		<copy file="${core.jar}" todir="${onecmdb.gwt.modeller.war.build}/WEB-INF/lib"/>
+ 		<!-- 3rd part libs. -->
+ 		<copy file="3rdparty-depts/compile-time/gwt/gwt-servlet.jar" todir="${onecmdb.gwt.modeller.war.build}/WEB-INF/lib"/>
+ 		<copy file="3rdparty-depts/compile-time/gwt/gwtiger.jar" todir="${onecmdb.gwt.modeller.war.build}/WEB-INF/lib"/>
+ 		<copy file="3rdparty-depts/lib/activation-1.1.jar" todir="${onecmdb.gwt.modeller.war.build}/WEB-INF/lib"/>         
+ 		<copy file="3rdparty-depts/lib/dom4j-1.6.jar" todir="${onecmdb.gwt.modeller.war.build}/WEB-INF/lib"/>       
+ 		<copy file="3rdparty-depts/lib/xfire-all-1.2.6.jar" todir="${onecmdb.gwt.modeller.war.build}/WEB-INF/lib"/>
+ 		<copy file="3rdparty-depts/lib/commons-codec-1.3.jar" todir="${onecmdb.gwt.modeller.war.build}/WEB-INF/lib"/>      
+ 		<copy file="3rdparty-depts/lib/stax-api-1.0.1.jar" todir="${onecmdb.gwt.modeller.war.build}/WEB-INF/lib"/>
+ 		<copy file="3rdparty-depts/lib/commons-httpclient.jar" todir="${onecmdb.gwt.modeller.war.build}/WEB-INF/lib"/>     
+ 		<copy file="3rdparty-depts/lib/jdom-1.0.jar" todir="${onecmdb.gwt.modeller.war.build}/WEB-INF/lib"/>        
+ 		<copy file="3rdparty-depts/lib/wsdl4j-1.6.1.jar" todir="${onecmdb.gwt.modeller.war.build}/WEB-INF/lib"/>
+ 		<copy file="3rdparty-depts/lib/commons-logging-1.0.4.jar" todir="${onecmdb.gwt.modeller.war.build}/WEB-INF/lib"/>  
+ 		<copy file="3rdparty-depts/lib/jsr173_api-1.0.jar" todir="${onecmdb.gwt.modeller.war.build}/WEB-INF/lib"/>  
+ 		<copy file="3rdparty-depts/lib/wstx-asl-3.2.0.jar" todir="${onecmdb.gwt.modeller.war.build}/WEB-INF/lib"/>
+ 		 
+ 		<!-- Copy itil compile -->
+ 		<copy todir="${onecmdb.gwt.modeller.war.build}">
+ 			<fileset dir="${onecmdb.gwt.modeller.build}/${onecmdb.gwt.modeller.entrypoint.class}"/>
+ 		</copy>
+ 		
+ 		<!-- jar it to a war -->
+ 		<jar destfile="${onecmdb.gwt.modeller.war.dest}" basedir="${onecmdb.gwt.modeller.war.build}" />
+ 	</target>
+ 
+ 	
+ 	<!-- =================================================================== --> 
+	<!-- =                                                                   -->
+	<!-- = WAR - under {web.build}/war                                       -->
+	<!-- =	                                                                 -->
+	<!-- =================================================================== --> 
+
+	<target name="war.init">
+		<mkdir dir="${web.build}/war"/>
+	</target>
+
+	<target name="war.layout" depends="war.init,compile,jars">
+		<copy todir="${web.build}/war">
+			<fileset dir="${web.src}/../WebContent">
+				<exclude name="**/classes/**"/>
+				<exclude name="**/lib/**"/>
+				<exclude name="**/*.tld"/>
+			</fileset>
+		</copy>
+
+		<mkdir dir="${web.build}/war/WEB-INF"/>
+		<copy todir="${web.build}/war/WEB-INF">
+			<fileset dir="3rdparty-depts/tld" />
+			<fileset dir="3rdparty-depts">
+				<include name="lib/**" />
+			</fileset>
+
+			<fileset dir="${web.src}/../WebContent/WEB-INF">
+				<include name="*.tld" />
+			</fileset>
+			
+			<fileset dir="${web.build}">
+				<include name="classes/**" />
+			</fileset>
+
+			<fileset dir="${core.build}">
+				<include name="classes/**" />
+			</fileset>
+
+			<fileset dir="${utils.build}">
+				<include name="classes/**" />
+			</fileset>
+		</copy>
+	</target>
+
+	<target name="war" depends="modrepl.common,war.layout">
+		<jar destfile="${war.dest}" basedir="${web.build}/war" />
+	</target>
+
+	<target name="war.clean">
+		<delete file="${war.dest}" failonerror="false"/>
+		<delete includeemptydirs="true" failonerror="false">
+		<fileset dir="${web.build}/war" />
+		</delete>
+	</target>
+
+
+	<!-- Tomcat Deployment -->
+
+	<taskdef file="catalina.tasks">
+		<classpath>
+			<pathelement path="${catalina.home}/server/lib/catalina-ant.jar"/>
+		</classpath>
+	</taskdef>
+
+
+	
+	<target name="deploy" description="Install application in Catalina"
+	        depends="war">
+		<deploy url="${catalina.manager.url}"
+		            username="${catalina.username}"
+		            password="${catalina.password}"
+		            path="/${web.name}"
+		            war="file:${war.dest}"/>
+
+	</target>
+
+	<target name="explode" description="Explodes the latest war file in Catalina"
+		        depends="war">
+			<unjar 
+				src="${war.dest}"
+				dest="${catalina.home}/webapps/${web.name}"
+				overwrite="false"
+			/>
+			
+
+	</target>
+
+	
+	
+	<target name="undeploy" description="Remove application in Catalina">
+		<undeploy 
+			url="${catalina.manager.url}"
+	        username="${catalina.username}"
+	        password="${catalina.password}"
+	        path="/${web.name}"/>
+	</target>
+
+	<target name="reload" description="Reload application in Catalina" 
+		depends="war">
+		<reload 
+			url="${catalina.manager.url}" 
+			username="${catalina.username}" 
+			password="${catalina.password}" 
+			path="/${web.name}" />
+	</target>
+
+	<target name="start" description="Start Catalina application">
+		<start 
+			url="${catalina.manager.url}"
+			username="${catalina.username}"
+			password="${catalina.password}"
+			path="/${web.name}" />
+	</target>
+
+	<target name="stop" description="Stop Catalina application">
+		<stop 
+			url="${catalina.manager.url}" 
+			username="${catalina.username}"
+			password="${catalina.password}"
+			path="/${web.name}" />
+	</target>
+
+	<target name="list" description="List Catalina applications">
+		<list 
+			url="${catalina.manager.url}" 
+			username="${catalina.username}" 
+			password="${catalina.password}" />
+	</target>
+
+<!-- =================================================================== --> 
+<!-- =                                                                   -->
+<!-- = Javadoc                                                           -->
+<!-- =	                                                                 -->
+<!-- =================================================================== --> 
+
+	<target name="javadoc" description="Generate public javadocs" depends="compile"> 	
+		<javadoc
+			destdir="${build}/apidoc"
+			author="true"
+			version="true"
+			use="true" 
+			includenosourcepackages="yes"
+			protected="yes">
+
+			<packageset dir="${core.src}/java">
+				<include name="org/onecmdb/core/**"/>
+				<exclude name="org/onecmdb/core/internal/**"/>
+				<exclude name="org/onecmdb/core/tests/**"/>
+				<exclude name="org/onecmdb/core/doc-files/**"/>
+			</packageset>		
+			<packageset dir="${core.dir}/docs/api">
+				<include name="org/onecmdb/core/**"/>
+			</packageset>		
+			
+			<packageset dir="${web.src}/java">
+				<include name="org/onecmdb/web/**"/>
+				<exclude name="org/onecmdb/web/internal/**"/>
+				<exclude name="org/onecmdb/web/tests/**"/>
+				<exclude name="org/onecmdb/web/doc-files/**"/>
+			</packageset>
+			
+			<packageset dir="${web.dir}/docs/api">
+				<include name="org/onecmdb/web/**"/>
+			</packageset>		
+
+			
+			
+			<doctitle><![CDATA[<h1>OneCMDB</h1>]]></doctitle>
+			<bottom><![CDATA[<i>Copyright &#169; 2000 Lokomo Systems. All Rights Reserved.</i>]]></bottom>
+			
+		</javadoc>
+		
+	</target>	
+	
+	
+	<!-- =================================================================== --> 
+	<!-- =                                                                   -->
+	<!-- = Layout source files                                               -->
+	<!-- =	                                                                 -->
+	<!-- =================================================================== --> 
+
+	<target name="setup.sources" description="Layout source files">
+		<copy todir="inst/src/org.onecmdb.core/src">
+			<fileset dir="${core.src}" />
+		</copy>
+		<copy todir="inst/src/org.onecmdb.core/">
+			<fileset file="${core.dir}/build.xml" />
+			<fileset file="${core.dir}/build.properties" />
+		</copy>
+		
+		<copy todir="inst/src/org.onecmdb.utils/src/">
+				<fileset dir="${utils.src}" />
+		</copy>
+		<copy todir="inst/src/org.onecmdb.utils/">
+				<fileset file="${utils.dir}/build.xml" />
+				<fileset file="${utils.dir}/build.properties" />
+		</copy>
+		
+		<copy todir="inst/src/org.onecmdb.web/src" includeemptydirs="false">
+				<fileset dir="${web.src}" >
+					<exclude name="web/WEB-INF/classes/**/*" />
+					<exclude name="web/WEB-INF/lib/**/*" />
+				</fileset>
+		</copy>
+		<copy todir="inst/src/org.onecmdb.ui.gwt.toolkit/src" includeemptydirs="false">
+				<fileset dir="${onecmdb.gwt.toolkit.src}"/>
+		
+		</copy>
+		<copy todir="inst/src/org.onecmdb.ui.gwt.itil/src" includeemptydirs="false">
+				<fileset dir="${onecmdb.gwt.itil.src}"/>						
+		</copy>
+		<copy todir="inst/src/org.onecmdb.ui.gwt.modeller/src" includeemptydirs="false">
+				<fileset dir="${onecmdb.gwt.modeller.src}"/>
+		</copy>
+		<copy todir="inst/src/org.onecmdb.ui.gwt.desktop/" includeemptydirs="false">
+				<fileset dir="${onecmdb.gwt.desktop.dir}/build/source"/>
+		</copy>
+		<copy todir="inst/src/org.onecmdb.rest.graph/" includeemptydirs="false">
+				<fileset dir="${onecmdb.graph.applet.dir}/build/source"/>
+		</copy>
+		
+		<copy todir="inst/src/org.onecmdb.nagios/src" includeemptydirs="false">
+				<fileset dir="${onecmdb.nagios.dir}/src"/>
+		</copy>
+		
+		<copy todir="inst/src/org.onecmdb.nagios/" includeemptydirs="false">
+				<fileset file="${onecmdb.nagios.dir}/build.xml" />
+				<fileset file="${onecmdb.nagios.dir}/build.properties" />
+		</copy>	
+		
+		<copy todir="inst/src/org.onecmdb/" includeemptydirs="false">
+				<fileset file="build.xml" />
+				<fileset file="build.properties" />
+		</copy>	
+		
+			
+	</target>
+
+	<target name="clean.sources" description="Clean out layed out source files">
+		<delete includeemptydirs="true" failonerror="false">
+			<fileset dir="inst/src" />
+		</delete>
+	</target>
+
+
+	<!-- =================================================================== --> 
+	<!-- =                                                                   -->
+	<!-- = NSIS Setup (Windows platform)                                     -->
+	<!-- =	                                                                 -->
+	<!-- =================================================================== --> 
+
+	<taskdef name="nsis" classname="net.sf.nsisant.Task">
+		<classpath location="lib/nsisant-1.1.jar"/>
+	</taskdef>
+
+	<target name="sources.tar.gz" depends="setup.sources">
+		<tar destfile="${sources.dest.tar.gz}" compression="gzip" longfile="gnu">
+			<tarfileset dir="inst/src/..">
+				<include name="src/*/**" />
+			</tarfileset>
+		</tar>
+	</target>
+	
+	<target name="sources.clean"> 
+		<delete failonerror="false" file="${sources.dest.tar.gz}" />
+		<delete failonerror="false" file="${sources.dest.zip}" />
+	</target>
+
+	<target name="sources.zip" depends="setup.sources">
+		<zip destfile="${sources.dest.zip}">
+			<fileset dir="inst/src/..">
+				<include name="src/*/**" />
+			</fileset>
+		</zip>
+	</target>
+	
+	<target name="setup.win32.init" depends="setup.win32.inst">	
+		<mkdir dir="${dist.win32}" />
+		
+		<copy file="inst/README.txt" tofile="${dist.win32.README}" />		
+		<replace file="${dist.win32.README}" 
+    		propertyfile="onecmdb.properties">
+	    	<replacefilter 
+    			token="@ONECMDB_VERSION@" 
+    			property="onecmdb.version" />
+   	 	<replacefilter 
+    			token="@DATE@" 
+    			value="${build.TODAY}" />
+	    </replace>
+		
+		
+	</target>
+	
+	<target name="setup.win32.inst">
+		
+		<unzip src="3rdparty-depts/apps/apache-tomcat-5.5.17.zip"
+			dest="inst">
+		</unzip>
+		<mkdir dir="${onecmdb.gwt.desktop.war.dest}"/>
+		<copy file="../org.onecmdb.ui.gwt.desktop/build/onecmdb-desktop.war" todir="${onecmdb.gwt.desktop.war.dest}" />
+	
+		<mkdir dir="${onecmdb.gwt.desktop.repository.dest}"/>
+		<unzip src="../org.onecmdb.ui.gwt.desktop/build/repository.zip"
+				dest="${onecmdb.gwt.desktop.repository.dest}">
+		</unzip>
+		<unzip src="../org.onecmdb.nagios/build/repository.zip"
+				dest="${onecmdb.gwt.desktop.repository.dest}">
+		</unzip>
+		
+		<copy todir="inst/jdk-1.5.0_07">
+					<fileset dir="3rdparty-depts/build-time/jdk-1.5.0_07" />
+		</copy>
+		
+		<unzip src="3rdparty-depts/apps/nmap-4.10-win32.zip"
+				dest="inst">
+		</unzip>
+		
+		<unzip src="3rdparty-depts/apps/hsqldb_1_8_0_4.zip"
+					dest="inst">
+		</unzip>
+		<move file="inst/hsqldb" toFile="inst/hsqldb-1.8.0.4">
+		</move>
+				
+		<copy file="${core.src}/conf/create-index.sql" todir="inst/etc" />
+		<copy file="${core.src}/conf/create-index-hsql.sql" todir="inst/etc" />
+
+	</target>
+	
+	<target name="setup.win32.dist" depends="war,onecmdb.gwt.itil.war,onecmdb.gwt.modeller.war,sources.zip,modrepl.zip,classloader.build,
+		onecmdb.win32.viProductVersion,setup.win32.init"
+		description="Generate a standalone setup utility">
+		<nsis script="onecmdb.nsi" verbosity="4" >
+			<define name="DIST_DIR" value="${dist.win32}" />
+			<define name="ONECMDB_WAR" value="'${war.dest}'" />
+			<define name="ONECMDB_MODEL_CREATOR_WAR" value="'${onecmdb.gwt.modeller.war.dest}'" />
+			<define name="ONECMDB_ITIL_WAR" value="'${onecmdb.gwt.itil.war.dest}'" />
+			<define name="ONECMDB_DESKTOP_WAR" value="'${onecmdb.gwt.desktop.war.dest}\onecmdb-desktop.war'" />
+			<define name="VERSION" value="${onecmdb.version}" />
+			<define name="VI_PRODUCT_VERSION" value="${onecmdb.win32.viProductVersion}" />
+			<define name="OUTFILE" value="onecmdb-${onecmdb.version}-win32.exe" />
+		</nsis>
+		<echo>==========================================================</echo>
+		<echo>Summary</echo>
+		<echo>File: onecmdb-${onecmdb.version}-win32.exe</echo>
+		<echo>==========================================================</echo>
+	</target>
+
+	<target name="setup.clean">
+		<delete file="setup.exe" failonerror="false"/>
+	</target>
+	
+	
+	<!-- =================================================================== --> 
+	<!-- =                                                                   -->
+	<!-- = Tarball - Linux i386                                              -->
+	<!-- =	                                                                 -->
+	<!-- =================================================================== --> 
+
+	
+	<property 
+		name="depts.linux.tomcat.version" 
+		value="5.5.17" />
+	
+	
+	<property 
+		name="depts.linux.tomcat.zip" 
+		location="${depts}/apps/apache-tomcat-${depts.linux.tomcat.version}.zip" />
+
+	<property 
+		name="depts.linux.jre.version" value="1_5_0_08" />
+	<property 
+		name="depts.linux.jre.gz" 
+		location="${depts}/apps/jre-${depts.linux.jre.version}-linux-i586.tar.gz" />
+
+	<property name="depts.linux.jre.base" value="jre1.5.0_08" />
+
+	<property 
+		name="depts.linux.hsqldb.version" value="1_8_0_4" />
+	<property 
+		name="depts.linux.hsqldb.zip" 
+		location="${depts}/apps/hsqldb_${depts.linux.hsqldb.version}.zip" />
+	
+	<basename file="${depts.linux.hsqldb.zip}" property="depts.linux.hsqldb.base"
+		suffix="zip"/> 
+	
+	
+	<property 
+		name="depts.linux.nmap.version" value="2.54BETA37-1.i386" />
+	<property 
+		name="depts.linux.nmap.tar.gz"
+		location="${depts}/apps/nmap-${depts.linux.nmap.version}.tar.gz" />
+
+	
+	<property 
+		name="dist.win32" 
+		location="${build}/dist/win32/onecmdb" />
+	<property name="dist.win32.README"
+		location="${dist.win32}/README.txt" />
+	
+	
+	<property 
+		name="dist.linux.i386" 
+		location="${build}/dist/linux-i386/onecmdb" />
+
+	<property name="dist.linux.i386.README"
+		location="${dist.linux.i386}/README" />
+
+	<!-- Clean Distribution -->	
+	<target name="clean.linux.i386" depends="sources.clean">
+		<delete includeemptydirs="true" quiet="true" failonerror="false">
+			<fileset dir="${dist.linux.i386}">
+				 <include name="*/**" />
+			</fileset>
+		</delete>
+	</target>
+
+	
+	<!-- Begining of tasks to layout the linux distrivution -->
+	
+	<target name="setup.linux.i386.init" depends="init">
+		<mkdir dir="${dist.linux.i386}"/>
+
+		<copy 
+			file="inst/README.linux.i386" 
+			tofile="${dist.linux.i386}/README" />
+
+	    <replace file="${dist.linux.i386}/README" 
+	    	propertyfile="onecmdb.properties">
+	    	<replacefilter 
+	    		token="@ONECMDB_VERSION@" 
+	    		property="onecmdb.version" />
+	    	<replacefilter 
+	    		token="@DATE@" 
+	    		value="${build.TODAY}" />
+
+	    </replace>
+			
+			
+		<echo file="${dist.linux.i386.README}"  
+			append="true">
+THIRD PARTY APPLICATIONS
+------------------------
+			
+This directory contains third party software. For specific license 
+considirations, see respectivly directory:
+</echo>			
+	</target>
+
+	<target name="setup.linux.i386.tomcat" depends="setup.linux.i386.init">
+		<unzip src="${depts.linux.tomcat.zip}"
+			dest="${dist.linux.i386}">
+		</unzip>
+
+		<basename 
+			property="depts.linux.tomcat.base"
+			file="${depts.linux.tomcat.zip}" 
+			suffix="zip"/>
+		<echo message="${depts.linux.tomcat.base}" />
+		
+		<move
+			file="${dist.linux.i386}/${depts.linux.tomcat.base}"
+			tofile="${dist.linux.i386}/tomcat" />
+
+		<delete verbose="false" includeemptydirs="true" failonerror="false">
+			<fileset dir="${dist.linux.i386}/tomcat/webapps" >
+				<include name="*/**" />
+			</fileset>
+		</delete>
+		
+
+		<echo file="${dist.linux.i386.README}" append="true">
+./tomcat: ${depts.linux.tomcat.base}</echo>
+	</target>
+
+	<target name="setup.linux.i386.jre" depends="setup.linux.i386.init">
+		<untar src="${depts.linux.jre.gz}" compression="gzip"
+			dest="${dist.linux.i386}">
+		</untar>
+		<echo message="${depts.linux.jre.base}" />
+		<move
+			file="${dist.linux.i386}/${depts.linux.jre.base}"
+			tofile="${dist.linux.i386}/jre" />
+	
+		<echo file="${dist.linux.i386.README}" append="true">
+./jre: ${depts.linux.jre.base}</echo>
+	</target>
+
+	<target name="setup.linux.i386.hsqldb" depends="setup.linux.i386.init">
+		<unzip src="${depts.linux.hsqldb.zip}"
+			dest="${dist.linux.i386}">
+		</unzip>
+		<echo message="${depts.linux.hsqldb.base}" />
+		
+		<copy file="inst/etc/sqltool.rc" todir="${dist.linux.i386}/etc" />
+		<copy file="${core.src}/conf/create-index.sql" todir="${dist.linux.i386}/etc" />
+		<copy file="${core.src}/conf/create-index-hsql.sql" todir="${dist.linux.i386}/etc" />
+				
+		<echo file="${dist.linux.i386.README}" append="true">
+./hsqldb: ${depts.linux.hsqldb.base}</echo>
+	</target>
+
+	<target name="setup.linux.i386.nmap" depends="setup.linux.i386.init">
+		<untar src="${depts.linux.nmap.tar.gz}" compression="gzip"
+			dest="${dist.linux.i386}">
+		</untar>
+
+		<basename 
+			property="depts.linux.nmap.base"
+			file="${depts.linux.nmap.tar.gz}" 
+			suffix="tar.gz"/>
+		<echo message="${depts.linux.nmap.base}" />
+		
+		<move
+			file="${dist.linux.i386}/${depts.linux.nmap.base}"
+			tofile="${dist.linux.i386}/nmap" />
+
+		<echo file="${dist.linux.i386.README}" append="true">
+./nmap: ${depts.linux.nmap.base}</echo>
+	</target>
+
+	
+	<target name="setup.linux.i386.src" depends="setup.linux.i386.init,sources.tar.gz">
+		<copy todir="${dist.linux.i386}" file="${sources.dest.tar.gz}" />
+	</target>
+
+	
+	<target name="setup.linux.i386.bin" depends="setup.linux.i386.init">
+		<copy todir="${dist.linux.i386}/bin">
+			<fileset dir="inst/bin">  
+				<include name="*.sh"/>
+				<include name="*.class"/>
+				<include name="*.class"/>
+			</fileset>
+		</copy>
+	</target>
+	
+	<target name="setup.linux.i386" 
+		depends="setup.linux.i386.src,setup.linux.i386.jre,setup.linux.i386.hsqldb,
+		setup.linux.i386.tomcat,setup.linux.i386.nmap,setup.linux.i386.bin,
+		modrepl.tar.gz,classloader.build,war,onecmdb.gwt.itil.war,onecmdb.gwt.modeller.war"
+		description="Layouts files to fit a Linux (i386) distribution">
+		<mkdir dir="${dist.linux.i386}/tomcat/webapps/ROOT" />
+		<mkdir dir="${dist.linux.i386}/discovery" />
+		<unwar src="${war.dest}" dest="${dist.linux.i386}/tomcat/webapps/ROOT" />
+		<mkdir dir="${dist.linux.i386}/lib" />
+		<echo>Classloader file: ${classloader.jar}</echo>
+		<copy file="${classloader.jar}" toDir="${dist.linux.i386}/lib"></copy>
+		
+		<untar compression="gzip" src="${modrepl.tar.gz}" dest="${dist.linux.i386}" />
+		
+		<!-- make sure we point to the `nmap' executable -->
+		<replace
+			file="${dist.linux.i386}/tomcat/webapps/ROOT/WEB-INF/classes/${onecmdb.modelFilename}"
+			token="./nmap-4.10/nmap.exe"
+			value="./nmap/bin/nmap" />
+		
+		<copy file="${onecmdb.changes}" tofile="${dist.linux.i386}/CHANGES"></copy>
+	
+		<copy file="${onecmdb.license}" tofile="${dist.linux.i386}/LICENSE"></copy>
+		<copy file="${onecmdb.3rdpartylicenses}" tofile="${dist.linux.i386}/3RDPARTYLICENSES"></copy>
+		<copy file="${onecmdb.gwt.itil.war.dest}" toDir="${dist.linux.i386}/tomcat/webapps"/>
+		<copy file="${onecmdb.gwt.modeller.war.dest}" toDir="${dist.linux.i386}/tomcat/webapps"/>
+		<mkdir dir="${onecmdb.gwt.desktop.war.dest}"/>
+		
+		<copy file="../org.onecmdb.ui.gwt.desktop/build/onecmdb-desktop.war" todir="${onecmdb.gwt.desktop.war.dest}" />
+			
+		<mkdir dir="${onecmdb.gwt.desktop.repository.dest}"/>
+		<unzip src="../org.onecmdb.ui.gwt.desktop/build/repository.zip"
+				dest="${onecmdb.gwt.desktop.repository.dest}">
+		</unzip>
+		
+		<copy file="${onecmdb.gwt.desktop.war.dest}/onecmdb-desktop.war" toDir="${dist.linux.i386}/tomcat/webapps"/>
+		<copy todir="${dist.linux.i386}">
+					<fileset dir="${onecmdb.gwt.desktop.repository.dest}" />
+		</copy>
+		<echo file="${dist.linux.i386.README}" append="true">
+		
+
+</echo>
+
+		
+	</target>
+ 	
+ 	
+	<!-- Distributable File (.tar.gz) -->
+	<target name="setup.linux.i386.dist" 
+		depends="setup.linux.i386"
+		description="Creates a Linux (i386) gzip:ed tar ball containing OneCMDB">
+		
+		<fixcrlf eol="lf" srcdir="${dist.linux.i386}" includes="**/*.sh" />
+		
+		<dirname file="${dist.linux.i386}" property="dist.linux.i386.parent"/>
+		<basename file="${dist.linux.i386}" property="dist.linux.i386.dirname"/>
+		
+		
+		<tar longfile="gnu"
+			compression="gzip" 
+			destfile="onecmdb-${onecmdb.version}-linux.i386.tar.gz"
+		>
+			<tarfileset dir="${dist.linux.i386.parent}"
+				mode="644">
+				<include name="${dist.linux.i386.dirname}/**" />
+				<exclude name="${dist.linux.i386.dirname}/bin/*.sh" />
+				<exclude name="${dist.linux.i386.dirname}/jre/bin/*" />
+				<exclude name="${dist.linux.i386.dirname}/tomcat/**/*.sh" />
+				<exclude name="${dist.linux.i386.dirname}/hsqldb/**/*.sh" />
+			</tarfileset>
+			<tarfileset dir="${dist.linux.i386.parent}"
+				mode="755">
+				<include name="${dist.linux.i386.dirname}/bin/*.sh" />
+				<include name="${dist.linux.i386.dirname}/jre/bin/*" />
+				<include name="${dist.linux.i386.dirname}/tomcat/**/*.sh" />
+				<include name="${dist.linux.i386.dirname}/hsqldb/**/*.sh" />
+				<include name="${dist.linux.i386.dirname}/nmap/bin/*" />
+			</tarfileset>
+		</tar>
+		<echo>==========================================================</echo>
+		<echo>Summary</echo>
+		<echo>File: onecmdb-${onecmdb.version}-linux.i386.tar.gz</echo>
+		<echo>==========================================================</echo>
+			
+	</target>
+
+	
+	<target name="classloader.clean">
+		<delete failonerror="false" includeemptydirs="true">
+				<fileset dir="${build}/dist/classloader" />
+		</delete>
+	</target>
+
+	<property name="classloader.jar"
+		location="${build}/dist/classloader/lib/classloader.jar" />
+
+	<target name="classloader.build" depends="utils.compile">
+		<mkdir dir="${build}/dist/classloader/discovery" />
+		<mkdir dir="${build}/dist/classloader/lib" />
+				<jar destfile="${classloader.jar}">
+					<fileset dir="${utils.build}/classes">
+						<include name="org/onecmdb/utils/classloader/**/*" />
+					</fileset>
+				</jar>
+	</target>
+	
+	<target name="modrepl.clean" >
+		<delete failonerror="false" includeemptydirs="true">
+			<fileset dir="${build}/dist/modrepl" />
+		</delete>
+	</target>
+
+	<target name="modrepl.common" depends="core.compile,utils.compile">
+		<mkdir dir="${build}/dist/modrepl" />
+		<mkdir dir="${build}/dist/modrepl/etc/models" />
+		
+		<move todir="${build}/dist/modrepl/etc/models">
+			<fileset dir="${core.build}/classes">
+				<include name="*Model.xml" />
+				<exclude name="${onecmdb.modelFilename}"/>
+			</fileset>
+			<fileset dir="${utils.build}/classes">
+				<include name="*Model.xml" />
+				<exclude name="${onecmdb.modelFilename}"/>
+			</fileset>
+		</move>
+		<delete file="${onecmdb.modelFile}" />
+		
+		<fail message="Default model to package, `${onecmdb.defaultModel}', does not exist!">
+			<condition>
+				<not>
+					<available file="${build}/dist/modrepl/etc/models/${onecmdb.defaultModel}" />
+				</not>
+			</condition>
+		</fail>
+		
+		<copy tofile="${onecmdb.modelFile}" verbose="true">
+			<fileset dir="${build}/dist/modrepl/etc/models">
+				<include name="${onecmdb.defaultModel}" />
+			</fileset>
+		</copy>
+
+		<fail message="Model file `${onecmdb.modelFile}' does not exist!">
+			<condition>
+				<not>
+					<available file="${onecmdb.modelFile}" />
+				</not>
+			</condition>
+		</fail>
+		
+		<mkdir dir="${build}/dist/modrepl/lib" />
+		<jar destfile="${build}/dist/modrepl/lib/modrepl.jar">
+			<fileset dir="${utils.build}/classes">
+				<include name="org/onecmdb/utils/modrepl/**/*" />
+			</fileset>
+		</jar>
+	
+		<mkdir dir="${build}/dist/modrepl/bin" />
+		<copy todir="${build}/dist/modrepl/bin">
+			<fileset dir="inst/bin">
+				<include name="modrepl*" />
+			</fileset>
+		</copy>
+	
+	</target>	
+	
+	
+	<property name="modrepl.tar.gz"
+		location="modrepl.tar.gz" />
+
+	
+	<target name="modrepl.tar.gz" depends="modrepl.common">
+
+		<replace dir="${build}/dist/modrepl/etc/models" 
+			token="./nmap-4.10/nmap.exe"
+			value="./nmap/bin/nmap" >
+    		<include name="*Model.xml"/>
+		</replace>
+		
+		<tar compression="gzip" destfile="${modrepl.tar.gz}">
+			<tarfileset dir="${build}/dist/modrepl" mode="755">
+				<include name="bin/**/*.sh" />
+			</tarfileset>
+			<tarfileset dir="${build}/dist/modrepl" mode="644">
+				<exclude name="bin/**/" />
+			</tarfileset>
+		</tar>
+	
+	</target>
+
+	<property name="modrepl.zip"
+		location="modrepl.zip" />
+
+	<target name="modrepl.zip" depends="modrepl.common">
+		<zip destfile="${modrepl.zip}">
+			<fileset dir="${build}/dist/modrepl">
+				<exclude name="bin/**/*.sh" />
+			</fileset>
+		</zip>
+	</target>
+
+	<target name="tag" description="Tags the files according to the current version"
+		depends="core.cvs.tag,utils.cvs.tag,web.cvs.tag" >
+
+		<!-- create a tag in CVS -->
+		<cvs dest="${core.dir}" command="tag -F R_${onecmdb.cvs.tag}"  />
+		<cvs dest="${utils.dir}" command="tag -F R_${onecmdb.cvs.tag}"  />
+		<cvs dest="${web.dir}" command="tag -F R_${onecmdb.cvs.tag}"  />
+		<cvs command="tag -F R_${onecmdb.cvs.tag}"  />
+
+	</target>
+</project>
