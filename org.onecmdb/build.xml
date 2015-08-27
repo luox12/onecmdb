@@ -1,5 +1,5 @@
  <project name="OneCMDB | Single Edition" default="readme">
-	<!— one day i will change ant to maven really? —>
+	<!— one day i will change ant to maven you will do really? —>
 
 	<tstamp prefix="build" />
 	
